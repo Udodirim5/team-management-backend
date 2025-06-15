@@ -1,9 +1,9 @@
 // controllers/authController.ts
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 // import { promisify } from 'util';
 import bcrypt from 'bcryptjs';
-import jwt, { JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import getEnv from '../../config/env';
 import catchAsync from '../../utils/catchAsync';
 import AppError from '../../utils/AppError';
@@ -107,101 +107,6 @@ export const logout = (req: Request, res: Response) => {
   });
 };
 
-export const protect = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-  let token: string | undefined;
-
-  // 1. Get token from Authorization header or cookies
-  if (req.headers.authorization) {
-    // Trim and clean the authorization header
-    const authHeader = req.headers.authorization.trim();
-
-    // Check for "Bearer" prefix (case insensitive)
-    if (/^bearer\s+/i.test(authHeader)) {
-      // Split and get the token part
-      const parts = authHeader.split(/\s+/);
-
-      // Handle cases where "Bearer" might be duplicated
-      token = parts.length >= 2 ? parts[parts.length - 1] : undefined;
-    }
-  } else if (req.cookies?.jwt) {
-    token = req.cookies.jwt;
-  }
-
-  // 2. If no token, kick them out
-  if (!token) {
-    throw new AppError('You are not logged in! Please log in to get access.', 401);
-  }
-
-  // 3. Verify token
-  const decoded = jwt.verify(token, JWT_SECRET) as { id: string; iat?: number };
-
-  // 4. Check if user still exists
-  const currentUser = await prisma.user.findUnique({ where: { id: decoded.id } });
-  if (!currentUser) {
-    throw new AppError('The user belonging to this token does no longer exist.', 401);
-  }
-
-  // 5. Check if password was changed after the token was issued
-  // if (currentUser.passwordChangedAt && decoded.iat) {
-  //   const changedTimestamp = Math.floor(currentUser.passwordChangedAt.getTime() / 1000);
-  //   if (decoded.iat < changedTimestamp) {
-  //     throw new AppError('Password changed recently. Please log in again.', 401);
-  //   }
-  // }
-
-  // 6. Grant access
-  req.user = currentUser;
-  res.locals.user = currentUser;
-  next();
-});
-
-export const isLoggedIn = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  if (req.cookies.jwt) {
-    try {
-      // 1) Verify the token
-      const decoded = await new Promise<JwtPayload | string>((resolve, reject) => {
-        jwt.verify(
-          req.cookies.jwt,
-          getEnv('JWT_SECRET') as string,
-          (err: jwt.VerifyErrors | null, decoded: string | JwtPayload | undefined) => {
-            if (err) return reject(err);
-            resolve(decoded as JwtPayload | string);
-          }
-        );
-      });
-
-      // 2) Check if the user still exists
-      let userId: string | undefined;
-      if (typeof decoded === 'object' && decoded !== null && 'id' in decoded) {
-        userId = (decoded as JwtPayload & { id?: string }).id;
-      }
-      if (!userId) {
-        return next();
-      }
-      const currentUser = await prisma.user.findUnique({ where: { id: userId } });
-      if (!currentUser) {
-        return next();
-      }
-
-      // 3) Check if user changed password after the token was issued
-      // if (
-      //   typeof decoded === 'object' &&
-      //   decoded !== null &&
-      //   'iat' in decoded &&
-      //   currentUser.changedPasswordAfter((decoded as JwtPayload).iat)
-      // ) {
-      //   return next();
-      // }
-
-      // There's a logged in user
-      res.locals.user = currentUser;
-      req.user = currentUser; // Also set on request for consistency
-    } catch {
-      return next();
-    }
-  }
-  next();
-};
 export const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   const { email } = req.body;
 

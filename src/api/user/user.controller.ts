@@ -22,6 +22,7 @@ const UserController = {
     try {
       const user = await prisma.user.findUnique({
         where: { id: userId },
+        include: { memberships: true },
       });
 
       if (!user) {
