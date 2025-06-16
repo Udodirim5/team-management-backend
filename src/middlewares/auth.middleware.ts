@@ -4,6 +4,7 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import AppError from '../utils/AppError';
 import getEnv from '../config/env';
 import catchAsync from '../utils/catchAsync';
+import { extractProjectId } from '../utils/extractProjectId';
 
 const prisma = new PrismaClient();
 
@@ -23,29 +24,18 @@ export const restrictToProjectAccess = (allowedRoles: Role[] = []) => {
     }
 
     const userId = req.user?.id;
-    // const projectId = req.params['id'] || req.body.projectId;
-const projectId =
-  typeof req.params?.['id'] === 'string'
-    ? req.params['id']
-    : typeof req.body?.projectId === 'string'
-    ? req.body.projectId
-    : typeof req.query?.['projectId'] === 'string'
-    ? req.query['projectId']
-    : undefined;
+    const projectId = extractProjectId(req);
 
     // 2. Validate required IDs
     if (!userId || !projectId) {
       return res.status(400).json({ message: 'Missing user or project info' });
     }
 
-    console.log({userId, projectId})
     try {
       // 3. Check membership
       const membership = await prisma.membership.findUnique({
         where: { userId_projectId: { userId, projectId } },
       });
-
-      console.log(Boolean(membership))
 
       if (!membership) {
         return res.status(403).json({ message: 'You are not a member of this project' });

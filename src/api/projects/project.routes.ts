@@ -13,6 +13,8 @@ const {
   deleteProject,
   addMember,
   removeMember,
+  makeAdmin,
+  removeAdmin,
 } = ProjectController;
 
 // Typed async handler
@@ -32,15 +34,10 @@ const asyncHandler =
 router.use(protect);
 
 // ✅ Routes
-router.route('/').post(asyncHandler(createProject));
-
-router.route('/my-projects/:id').get(
-  asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN', 'MEMBER'])), // anyone in the project
-  asyncHandler(getAllProjects),
-);
+router.route('/').post(asyncHandler(createProject)).get(asyncHandler(getAllProjects));
 
 router
-  .route('/:id')
+  .route('/:projectId')
   .get(
     asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN', 'MEMBER'])), // anyone in the project
     asyncHandler(getProject),
@@ -55,11 +52,17 @@ router
   );
 
 router
-  .route('/add-member/:id')
+  .route('/:projectId/members/add')
   .post(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(addMember));
 
 router
-  .route('/remove-member/:id')
+  .route('/:projectId/members/remove')
   .delete(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(removeMember));
+router
+  .route('/:projectId/members/role/makeAdmin')
+  .patch(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(makeAdmin));
+router
+  .route('/:projectId/members/role/remove-admin')
+  .patch(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(removeAdmin));
 
 export default router;
