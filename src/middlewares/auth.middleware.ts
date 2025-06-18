@@ -17,7 +17,7 @@ if (!JWT_SECRET || !JWT_EXPIRES_IN) {
 }
 
 export const restrictToProjectAccess = (allowedRoles: Role[] = []) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     // 1. Ensure user is authenticated
     if (!req.user) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -31,30 +31,25 @@ export const restrictToProjectAccess = (allowedRoles: Role[] = []) => {
       return res.status(400).json({ message: 'Missing user or project info' });
     }
 
-    try {
-      // 3. Check membership
-      const membership = await prisma.membership.findUnique({
-        where: { userId_projectId: { userId, projectId } },
-      });
+    // 3. Check membership
+    const membership = await prisma.membership.findUnique({
+      where: { userId_projectId: { userId, projectId } },
+    });
 
-      if (!membership) {
-        return res.status(403).json({ message: 'You are not a member of this project' });
-      }
-
-      // 4. Check role permissions (case-insensitive)
-      if (allowedRoles.length > 0 && !allowedRoles.includes(membership.role)) {
-        return res.status(403).json({ message: 'Insufficient permissions' });
-      }
-
-      // 5. Attach membership to req if needed downstream
-      req.membership = membership;
-
-      return next();
-    } catch (error) {
-      console.error('Project access error:', error);
-      return res.status(500).json({ message: 'Server error' });
+    if (!membership) {
+      return res.status(403).json({ message: 'You are not a member of this project' });
     }
-  };
+
+    // 4. Check role permissions (case-insensitive)
+    if (allowedRoles.length > 0 && !allowedRoles.includes(membership.role)) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    // 5. Attach membership to req if needed downstream
+    req.membership = membership;
+
+    return next();
+  });
 };
 
 export const protect = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -105,13 +100,9 @@ export const protect = catchAsync(async (req: Request, res: Response, next: Next
   next();
 });
 
-export const isLoggedIn = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> => {
-  if (req.cookies.jwt) {
-    try {
+export const isLoggedIn = catchAsync(
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (req.cookies.jwt) {
       // 1) Verify the token
       const decoded = await new Promise<JwtPayload | string>((resolve, reject) => {
         jwt.verify(
@@ -150,9 +141,7 @@ export const isLoggedIn = async (
       // There's a logged in user
       res.locals.user = currentUser;
       req.user = currentUser; // Also set on request for consistency
-    } catch {
-      return next();
     }
-  }
-  next();
-};
+    next();
+  },
+);

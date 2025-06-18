@@ -2,11 +2,13 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 // import { promisify } from 'util';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import getEnv from '../../config/env';
 import catchAsync from '../../utils/catchAsync';
 import AppError from '../../utils/AppError';
+import EmailService from '../../utils/email';
 
 const prisma = new PrismaClient();
 
@@ -119,8 +121,25 @@ export const forgotPassword = catchAsync(async (req: Request, res: Response) => 
     throw new AppError('There is no user with that email address', 404);
   }
 
-  // Generate reset token and send email logic goes here
-  // ...
+  // 1. Generate token (this is a placeholder — you should use crypto)
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  await prisma.user.update({
+    where: { email },
+    data: {
+      passwordResetToken: hashedToken,
+      passwordResetExpires: expires,
+    },
+  });
+
+  // 2. Send email
+  const resetUrl = `${getEnv('FRONTEND_URL')}/reset-password/${resetToken}`;
+  const safeUser = { ...user, name: user.name ?? '' }; // Ensure name is a string
+  const emailService = new EmailService(safeUser, resetUrl);
+  await emailService.sendPasswordReset();
 
   res.status(200).json({
     status: 'success',

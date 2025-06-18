@@ -1,7 +1,8 @@
 // routes/project.routes.ts
-import express, { Request, Response, NextFunction, Router } from 'express';
+import express, { Router } from 'express';
 import ProjectController from './project.controller';
 import { protect, restrictToProjectAccess } from '../../middlewares/auth.middleware';
+import taskRoutes from '../tasks/task.routes';
 
 const router: Router = express.Router();
 
@@ -17,52 +18,40 @@ const {
   removeAdmin,
 } = ProjectController;
 
-// Typed async handler
-type AsyncRouteHandler<Req = Request, Res = Response> = (
-  req: Req,
-  res: Res,
-  next: NextFunction,
-) => Promise<unknown>;
-
-const asyncHandler =
-  <R extends Request, S extends Response>(fn: AsyncRouteHandler<R, S>) =>
-  (req: R, res: S, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-
 // ✅ Protect all routes
 router.use(protect);
+router.use('/:projectId/tasks', taskRoutes);
 
 // ✅ Routes
-router.route('/').post(asyncHandler(createProject)).get(asyncHandler(getAllProjects));
+router.route('/').post(createProject).get(getAllProjects);
 
 router
   .route('/:projectId')
   .get(
-    asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN', 'MEMBER'])), // anyone in the project
-    asyncHandler(getProject),
+    restrictToProjectAccess(['OWNER', 'ADMIN', 'MEMBER']), // anyone in the project
+    getProject,
   )
   .patch(
-    asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), // only owner/admin
-    asyncHandler(updateProject),
+    restrictToProjectAccess(['OWNER', 'ADMIN']), // only owner/admin
+    updateProject,
   )
   .delete(
-    asyncHandler(restrictToProjectAccess(['OWNER'])), // only owner
-    asyncHandler(deleteProject),
+    restrictToProjectAccess(['OWNER']), // only owner
+    deleteProject,
   );
 
 router
   .route('/:projectId/members/add')
-  .post(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(addMember));
+  .post(restrictToProjectAccess(['OWNER', 'ADMIN']), addMember);
 
 router
   .route('/:projectId/members/remove')
-  .delete(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(removeMember));
+  .delete(restrictToProjectAccess(['OWNER', 'ADMIN']), removeMember);
 router
   .route('/:projectId/members/role/makeAdmin')
-  .patch(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(makeAdmin));
+  .patch(restrictToProjectAccess(['OWNER', 'ADMIN']), makeAdmin);
 router
   .route('/:projectId/members/role/remove-admin')
-  .patch(asyncHandler(restrictToProjectAccess(['OWNER', 'ADMIN'])), asyncHandler(removeAdmin));
+  .patch(restrictToProjectAccess(['OWNER', 'ADMIN']), removeAdmin);
 
 export default router;
