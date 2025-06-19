@@ -1,0 +1,28 @@
+import { CorsOptions } from 'cors';
+import getEnv from './env';
+
+const devOrigins = [
+  'http://localhost:3000',    // Web (React)
+  'http://localhost:5173',    // Vite dev
+  'http://localhost:19006',   // React Native (Expo dev)
+  'http://127.0.0.1:19006',   // React Native (iOS dev)
+];
+
+const prodOrigins = [
+  'https://yourapp.com',        // Main frontend
+  'https://mobile.yourapp.com', // Mobile-specific frontend
+];
+
+const allowlist = getEnv('NODE_ENV') === 'production' ? prodOrigins : devOrigins;
+
+export const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like curl or mobile apps)
+    if (!origin || allowlist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+};

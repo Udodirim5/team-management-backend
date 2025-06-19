@@ -55,7 +55,7 @@ export const restrictToProjectAccess = (allowedRoles: Role[] = []) => {
 export const protect = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   let token: string | undefined;
 
-  // 1. Get token from Authorization header or cookies
+  // 1. Get token from Authorization h9oik,m9,oi;klm, eader or cookies
   if (req.headers.authorization) {
     // Trim and clean the authorization header
     const authHeader = req.headers.authorization.trim();
@@ -68,8 +68,8 @@ export const protect = catchAsync(async (req: Request, res: Response, next: Next
       // Handle cases where "Bearer" might be duplicated
       token = parts.length >= 2 ? parts[parts.length - 1] : undefined;
     }
-  } else if (req.cookies?.jwt) {
-    token = req.cookies.jwt;
+  } else if (req.cookies?.["jwt"]) {
+    token = req.cookies?.["jwt"];
   }
 
   // 2. If no token, kick them out
@@ -100,48 +100,24 @@ export const protect = catchAsync(async (req: Request, res: Response, next: Next
   next();
 });
 
-export const isLoggedIn = catchAsync(
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (req.cookies.jwt) {
-      // 1) Verify the token
-      const decoded = await new Promise<JwtPayload | string>((resolve, reject) => {
-        jwt.verify(
-          req.cookies.jwt,
-          getEnv('JWT_SECRET') as string,
-          (err: jwt.VerifyErrors | null, decoded: string | JwtPayload | undefined) => {
-            if (err) return reject(err);
-            resolve(decoded as JwtPayload | string);
-          },
-        );
-      });
+export const isLoggedIn = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const token = req.cookies?.["jwt"];
+  if (!token) return next();
 
-      // 2) Check if the user still exists
-      let userId: string | undefined;
-      if (typeof decoded === 'object' && decoded !== null && 'id' in decoded) {
-        userId = (decoded as JwtPayload & { id?: string }).id;
-      }
-      if (!userId) {
-        return next();
-      }
-      const currentUser = await prisma.user.findUnique({ where: { id: userId } });
-      if (!currentUser) {
-        return next();
-      }
+  let decoded: JwtPayload;
+  try {
+    decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+  } catch {
+    return next();
+  }
 
-      // 3) Check if user changed password after the token was issued
-      // if (
-      //   typeof decoded === 'object' &&
-      //   decoded !== null &&
-      //   'iat' in decoded &&
-      //   currentUser.changedPasswordAfter((decoded as JwtPayload).iat)
-      // ) {
-      //   return next();
-      // }
+  const userId = decoded?.["id"];
+  if (!userId) return next();
 
-      // There's a logged in user
-      res.locals.user = currentUser;
-      req.user = currentUser; // Also set on request for consistency
-    }
-    next();
-  },
-);
+  const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+  if (!currentUser) return next();
+
+  req.user = currentUser;
+  res.locals.user = currentUser;
+  next();
+});
