@@ -14,26 +14,25 @@ import projectRoutes from './api/projects/project.routes';
 import AppError from './utils/AppError';
 import globalErrorHandler from './utils/globalErrorHandler';
 import { corsOptions } from './config/corsConfig';
-import getEnv from './config/env';
 
 const app = express();
+app.set('trust proxy', 1); // 1 = trust first proxy like Railway, Vercel, etc.
 const BASE_URL = '/api/v1';
 
 // Middleware
-app.use(cors(corsOptions)); // Enable CORS
-app.use(helmet());
+app.set('trust proxy', 1);
+app.use(cors(corsOptions)); // CORS first
+app.use(helmet()); // secure headers
+app.use(express.json()); // 👈 Move this above rate limit
+app.use(cookieParser()); // parse cookies
+app.use(morgan('dev')); // only in dev
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
     message: 'Too many requests from this IP, please try again in an hour',
   }),
-);
-if (getEnv('NODE_ENV') === 'development') {
-  app.use(morgan('dev'));
-}
-app.use(cookieParser());
-app.use(express.json());
+); // rate limiter last among middleware
 
 // Routes
 app.use(`${BASE_URL}/auth`, authRoutes);
