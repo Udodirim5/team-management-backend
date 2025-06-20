@@ -1,5 +1,5 @@
 // utils/email.ts
-import nodemailer from 'nodemailer';
+import nodemailer, { Transporter } from 'nodemailer';
 import { htmlToText } from 'html-to-text';
 import getEnv from '../config/env';
 
@@ -21,13 +21,28 @@ export default class EmailService {
     this.from = `Team Manager <${getEnv('EMAIL_FROM')}>`;
   }
 
-  private newTransport() {
+  private async newTransport(): Promise<Transporter> {
+    if (getEnv('NODE_ENV') === 'production') {
+      return nodemailer.createTransport({
+        host: getEnv('EMAIL_HOST'),
+        port: Number(getEnv('EMAIL_PORT')),
+        secure: Number(getEnv('EMAIL_PORT')) === 465, // true if using SSL
+        auth: {
+          user: getEnv('EMAIL_USERNAME'),
+          pass: getEnv('EMAIL_PASSWORD'),
+        },
+      });
+    }
+
+    // ETHEREAL fallback in dev
+    const testAccount = await nodemailer.createTestAccount();
     return nodemailer.createTransport({
-      host: getEnv('EMAIL_HOST'),
-      port: Number(getEnv('EMAIL_PORT')),
+      host: testAccount.smtp.host,
+      port: testAccount.smtp.port,
+      secure: testAccount.smtp.secure,
       auth: {
-        user: getEnv('EMAIL_USERNAME'),
-        pass: getEnv('EMAIL_PASSWORD'),
+        user: testAccount.user,
+        pass: testAccount.pass,
       },
     });
   }
@@ -43,6 +58,8 @@ export default class EmailService {
       </div>
     `;
 
+    const transporter = await this.newTransport();
+
     const mailOptions = {
       from: this.from,
       to: this.to,
@@ -51,20 +68,21 @@ export default class EmailService {
       text: htmlToText(html),
     };
 
-    await this.newTransport().sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+
+    if (getEnv('NODE_ENV') !== 'production') {
+      console.log(`📬 Email sent (preview): ${nodemailer.getTestMessageUrl(info)}`);
+    }
   }
 
   async sendWelcome() {
-    await this.send(
-      'Welcome to Team Manager!',
-      `We're thrilled to have you on board. Click below to get started.`,
-    );
+    await this.send('Welcome to Team Manager!', "We're thrilled to have you on board.");
   }
 
   async sendPasswordReset() {
     await this.send(
       'Password Reset Token',
-      `You requested a password reset. Use the link below to set a new password. This token is valid for only 10 minutes.`,
+      `Click the link below to reset your password. Valid for 10 mins.`,
     );
   }
 }
