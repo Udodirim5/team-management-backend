@@ -114,16 +114,19 @@ const ProjectController = {
       return;
     }
 
-    const { name, description } = req.body;
+    const { name, description, startDate, endDate } = req.body;
     const updatedProject = await prisma.project.update({
       where: { id: projectId },
       data: {
         name,
         description,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
       },
     });
     res.status(200).json(updatedProject);
   }),
+  
 
   deleteProject: catchAsync(async (req: Request, res: Response) => {
     const projectId = extractProjectId(req);
