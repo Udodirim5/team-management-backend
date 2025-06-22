@@ -32,27 +32,56 @@ const signToken = (id: string): string => {
   } as jwt.SignOptions);
 };
 
-const createAndSendToken = (user: { id: string; email: string }, req: Request, res: Response) => {
-  const token = signToken(user.id);
+// const createAndSendToken = (user: { id: string; email: string }, req: Request, res: Response) => {
+//   const token = signToken(user.id);
+
+//   res.cookie('jwt', token, {
+//     expires: new Date(Date.now() + JWT_COOKIE_EXPIRES_IN),
+//     httpOnly: true,
+//     secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+//   });
+
+//   res.status(200).json({
+//     status: 'success',
+//     token,
+//     data: {
+//       user: {
+//         id: user.id,
+//         email: user.email,
+//       },
+//     },
+//   });
+// };
+
+const createAndSendToken = async (userId: string, req: Request, res: Response) => {
+  const token = signToken(userId);
+  
+  // Fetch full user data with memberships
+  const fullUser = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      memberships: {
+        include: {
+          project: true
+        }
+      }
+    }
+  });
 
   res.cookie('jwt', token, {
     expires: new Date(Date.now() + JWT_COOKIE_EXPIRES_IN),
     httpOnly: true,
     secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
   });
-
+  
   res.status(200).json({
     status: 'success',
     token,
     data: {
-      user: {
-        id: user.id,
-        email: user.email,
-      },
+      user: fullUser, // Now returns the complete user object
     },
   });
 };
-
 export const signUp = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const { email, password, passwordConfirm, name } = req.body;
 
@@ -86,7 +115,11 @@ export const signUp = catchAsync(async (req: Request, res: Response, next: NextF
     },
   });
 
-  createAndSendToken({ id: newUser.id, email: newUser.email }, req, res);
+  if (!newUser) {
+    return next(new AppError('Failed to create user', 500));
+  }
+
+  createAndSendToken(newUser.id, req, res);
 });
 
 export const login = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -102,7 +135,8 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
     return next(new AppError('Incorrect email or password', 401));
   }
 
-  createAndSendToken({ id: user.id, email: user.email }, req, res);
+  createAndSendToken(user.id, req, res);
+  // createAndSendToken({ id: user.id, email: user.email }, req, res);
 });
 
 export const logout = (req: Request, res: Response) => {
@@ -210,7 +244,11 @@ export const resetPassword = catchAsync(async (req, res, next) => {
   });
 
   // 4) Send new JWT
-  createAndSendToken({ id: updatedUser.id, email: updatedUser.email }, req, res);
+  if (!updatedUser) {
+    return next(new AppError('Failed to update password', 500));
+  }
+
+  createAndSendToken(updatedUser.id, req, res);
 });
 
 export const updatePassword = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -255,5 +293,9 @@ export const updatePassword = catchAsync(async (req: Request, res: Response, nex
   });
 
   // 5) Log the user in (set a new jwt)
-  createAndSendToken({ id: updatedUser.id, email: updatedUser.email }, req, res);
+  if (!updatedUser) {
+    return next(new AppError('Failed to update password', 500));
+  }
+
+  createAndSendToken(updatedUser.id, req, res);
 });

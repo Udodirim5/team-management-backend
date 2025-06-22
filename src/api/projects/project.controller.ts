@@ -27,15 +27,20 @@ const ProjectController = {
   }),
 
   createProject: catchAsync(async (req: Request, res: Response) => {
-    const { name, description } = req.body;
+    const { name, description, startDate, endDate } = req.body;
     const creatorId = req.user?.id;
 
-    if (!name || !description) {
-      return res.status(400).json({ message: 'Name and description are required' });
+    if (!name || !description || !startDate || !endDate) {
+      return res.status(400).json({ message: 'Fill in the required fields' });
     }
 
     if (!creatorId) {
       return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Validate date range
+    if (new Date(startDate) >= new Date(endDate)) {
+      return res.status(400).json({ message: 'Start date must be before end date' });
     }
 
     // Use a transaction to ensure both operations succeed
