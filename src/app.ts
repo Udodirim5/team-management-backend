@@ -79,7 +79,7 @@ app.use(`${BASE_URL}/users`, userRoutes);
 app.use(`${BASE_URL}/projects`, projectRoutes);
 
 // 404 Handler
-app.all('*', (req, _res, next) => {
+app.all(/.*/, (req, _, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
 
