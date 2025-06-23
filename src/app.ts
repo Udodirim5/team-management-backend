@@ -19,16 +19,26 @@ app.set('trust proxy', 1); // Trust Railway/Vercel/etc
 const BASE_URL = '/api/v1';
 
 // ✅ CORS — allow local frontend
-const allowedOrigin = 'http://localhost:5173';
+const allowedOrigins = [
+  'http://localhost:5173', // dev
+  'https://yourfrontenddomain.com', // prod
+];
+
 app.use(
   cors({
-    origin: allowedOrigin,
-    credentials: true, // allow cookies/sessions
-  })
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Blocked by CORS: ${origin}`));
+      }
+    },
+    credentials: true,
+  }),
 );
 
 // ✅ Handle preflight requests manually for extra safety
-app.options('*', cors({ origin: allowedOrigin, credentials: true }));
+app.options('*', cors({ origin: allowedOrigins, credentials: true }));
 
 // ✅ Log origin for debugging CORS issues
 app.use((req, _res, next) => {
@@ -48,7 +58,7 @@ app.use(
     windowMs: 15 * 60 * 1000,
     max: 1000,
     message: 'Too many requests from this IP, please try again in an hour',
-  })
+  }),
 );
 
 // 🚀 API Routes
