@@ -13,7 +13,7 @@ import authRoutes from './api/auth/auth.routes';
 import projectRoutes from './api/projects/project.routes';
 import AppError from './utils/AppError';
 import globalErrorHandler from './utils/globalErrorHandler';
-import { corsOptions } from './config/corsConfig';
+// import { corsOptions } from './config/corsConfig';
 
 const app = express();
 app.set('trust proxy', 1); // 1 = trust first proxy like Railway, Vercel, etc.
@@ -21,7 +21,7 @@ const BASE_URL = '/api/v1';
 
 // Middleware
 app.set('trust proxy', 1);
-app.use(cors(corsOptions)); // CORS first
+// app.use(cors(corsOptions)); // CORS first
 app.use(helmet()); // secure headers
 app.use(express.json()); // 👈 Move this above rate limit
 app.use(cookieParser()); // parse cookies
