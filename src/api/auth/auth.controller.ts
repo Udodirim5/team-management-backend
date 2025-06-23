@@ -30,27 +30,6 @@ const signToken = (id: string): string => {
   } as jwt.SignOptions);
 };
 
-// const createAndSendToken = (user: { id: string; email: string }, req: Request, res: Response) => {
-//   const token = signToken(user.id);
-
-//   res.cookie('jwt', token, {
-//     expires: new Date(Date.now() + JWT_COOKIE_EXPIRES_IN),
-//     httpOnly: true,
-//     secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
-//   });
-
-//   res.status(200).json({
-//     status: 'success',
-//     token,
-//     data: {
-//       user: {
-//         id: user.id,
-//         email: user.email,
-//       },
-//     },
-//   });
-// };
-
 const createAndSendToken = async (userId: string, req: Request, res: Response) => {
   const token = signToken(userId);
 
@@ -139,7 +118,6 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
   }
 
   createAndSendToken(user.id, req, res);
-  // createAndSendToken({ id: user.id, email: user.email }, req, res);
 });
 
 export const logout = (req: Request, res: Response) => {

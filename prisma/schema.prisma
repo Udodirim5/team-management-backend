@@ -7,6 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+
+  createdProjects Project[]    @relation("CreatedProjects")
+  memberships     Membership[]
+
+  createdTasks    Task[]       @relation("CreatedTasks")
+  assignedTasks   Task[]       @relation("AssignedTasks")
+
+  comments        Comment[]
+  messages        Message[]
+  notifications   Notification[]
+  attachments     Attachment[] @relation("UploadedBy")
+
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+}
+
 model Project {
   id          String   @id @default(uuid())
   name        String
@@ -21,23 +43,7 @@ model Project {
 
   memberships Membership[]
   Task        Task[]
-}
-
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now())
-
-  createdProjects Project[]    @relation("CreatedProjects") // These are the lists of project crated by the user
-  memberships     Membership[]
-
-  passwordResetToken String?
-  passwordResetExpires DateTime?
-
-  createdTasks  Task[] @relation("CreatedTasks")
-  assignedTasks Task[] @relation("AssignedTasks")
+  messages    Message[]
 }
 
 model Membership {
@@ -45,21 +51,13 @@ model Membership {
   role      Role     @default(MEMBER)
   createdAt DateTime @default(now())
 
-  // Foreign keys
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
+  user     User     @relation(fields: [userId], references: [id])
+  userId   String
 
-  project   Project @relation(fields: [projectId], references: [id])
+  project  Project  @relation(fields: [projectId], references: [id])
   projectId String
 
-  @@unique([userId, projectId]) // prevent duplicate memberships
-}
-
-enum Role {
-  OWNER
-  ADMIN
-  MEMBER
-  VIEWER
+  @@unique([userId, projectId])
 }
 
 model Task {
@@ -70,18 +68,80 @@ model Task {
   priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Foreign Keys
-  project   Project @relation(fields: [projectId], references: [id])
-  projectId String
+  project     Project @relation(fields: [projectId], references: [id])
+  projectId   String
 
   createdBy   User   @relation("CreatedTasks", fields: [createdById], references: [id])
   createdById String
 
   assignedTo   User?   @relation("AssignedTasks", fields: [assignedToId], references: [id])
   assignedToId String?
+
+  comments     Comment[]
+  attachments  Attachment[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+
+  task     Task   @relation(fields: [taskId], references: [id])
+  taskId   String
+
+  attachments Attachment[]
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  content    String
+  createdAt  DateTime @default(now())
+
+  sender     User     @relation(fields: [senderId], references: [id])
+  senderId   String
+
+  project    Project  @relation(fields: [projectId], references: [id])
+  projectId  String
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  type       String
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  recipient  User     @relation(fields: [recipientId], references: [id])
+  recipientId String
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  url          String
+  filename     String
+  uploadedAt   DateTime @default(now())
+
+  uploadedBy   User     @relation("UploadedBy", fields: [uploadedById], references: [id])
+  uploadedById String
+
+  task         Task?    @relation(fields: [taskId], references: [id])
+  taskId       String?
+
+  comment      Comment? @relation(fields: [commentId], references: [id])
+  commentId    String?
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
 }
 
 enum TaskStatus {
