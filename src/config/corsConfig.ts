@@ -9,8 +9,9 @@ const devOrigins = [
 ];
 
 const prodOrigins = [
-  'https://yourapp.com',        // Main frontend
-  'https://mobile.yourapp.com', // Mobile-specific frontend
+  'https://yourapp.com',        // your actual prod domain
+  'https://mobile.yourapp.com', // mobile prod domain
+  'http://localhost:5173',      // 👈 ADD this for local frontend testing
 ];
 
 const allowlist = getEnv('NODE_ENV') === 'production' ? prodOrigins : devOrigins;
