@@ -1,5 +1,5 @@
 import express from 'express';
-// import cors from 'cors';
+import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
@@ -22,6 +22,14 @@ const BASE_URL = '/api/v1';
 // Middleware
 app.set('trust proxy', 1);
 // app.use(cors(corsOptions)); // CORS first
+
+app.use(
+  cors({
+    origin: 'http://localhost:5173',
+    credentials: true, // crucial for cookies/auth headers
+  })
+);
+
 app.use(helmet()); // secure headers
 app.use(express.json()); // 👈 Move this above rate limit
 app.use(cookieParser()); // parse cookies
@@ -29,10 +37,14 @@ app.use(morgan('dev')); // only in dev
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 1000, // limit each IP to 1000 requests per windowMs
     message: 'Too many requests from this IP, please try again in an hour',
   }),
 ); // rate limiter last among middleware
+app.use((req, _res, next) => {
+  console.log('Origin:', req.headers.origin);
+  next();
+});
 
 // Routes
 app.use(`${BASE_URL}/auth`, authRoutes);
