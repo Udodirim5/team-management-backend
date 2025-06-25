@@ -14,6 +14,7 @@ import projectRoutes from './api/projects/project.routes';
 import AppError from './utils/AppError';
 import globalErrorHandler from './utils/globalErrorHandler';
 import { corsOptions } from './config/corsConfig';
+import getEnv from './config/env';
 
 const app = express();
 app.set('trust proxy', 1); // 1 = trust first proxy like Railway, Vercel, etc.
@@ -25,7 +26,12 @@ app.use(cors(corsOptions)); // CORS first
 app.use(helmet()); // secure headers
 app.use(express.json()); // 👈 Move this above rate limit
 app.use(cookieParser()); // parse cookies
-app.use(morgan('dev')); // only in dev
+// Logging
+if (getEnv('NODE_ENV') === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -33,6 +39,15 @@ app.use(
     message: 'Too many requests from this IP, please try again in an hour',
   }),
 ); // rate limiter last among middleware
+
+// Health check endpoint (before other routes)
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
 // Routes
 app.use(`${BASE_URL}/auth`, authRoutes);
@@ -48,8 +63,6 @@ app.all(/.*/, (req, _, next) => {
 app.use(globalErrorHandler);
 
 export default app;
-
-
 
 // import express from 'express';
 // import cors from 'cors';

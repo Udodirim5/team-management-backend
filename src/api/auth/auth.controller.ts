@@ -10,6 +10,16 @@ import catchAsync from '../../utils/catchAsync';
 import AppError from '../../utils/AppError';
 import EmailService from '../../utils/email';
 
+type User = {
+  id: string;
+  email: string;
+  name?: string;
+  password: string;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
+  // add other fields as needed
+};
+
 const prisma = new PrismaClient();
 
 const JWT_SECRET = getEnv('JWT_SECRET');
@@ -30,36 +40,35 @@ const signToken = (id: string): string => {
   } as jwt.SignOptions);
 };
 
-const createAndSendToken = async (userId: string, req: Request, res: Response) => {
-  const token = signToken(userId);
+type UserWithoutSensitiveData = Omit<User, 'password'>;
 
-  // Fetch full user data with memberships
-  const fullUser = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      memberships: {
-        include: {
-          project: true,
-        },
-      },
-    },
-  });
-
-  if (!fullUser) {
-    return res.status(404).json({ message: 'User not found' });
+const sanitizeUser = (user: User): UserWithoutSensitiveData => {
+  // Remove password field from user object
+  if (!user || typeof user !== 'object') {
+    throw new Error('Invalid user object');
   }
+  const { password, ...sanitizedUser } = user;
+  void password; // explicitly ignore unused variable
+  return sanitizedUser;
+};
+
+const createAndSendToken = async (user: User, req: Request, statusCode: number, res: Response) => {
+  const token = signToken(user.id);
+
+  const cookieExpiresIn = JWT_COOKIE_EXPIRES_IN
 
   res.cookie('jwt', token, {
-    expires: new Date(Date.now() + JWT_COOKIE_EXPIRES_IN),
+    expires: new Date(Date.now() + cookieExpiresIn),
     httpOnly: true,
     secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+    sameSite: 'strict',
   });
 
-  return res.status(200).json({
+  return res.status(statusCode).json({
     status: 'success',
     token,
     data: {
-      user: fullUser, // Now returns the complete user object
+      user: sanitizeUser(user),
     },
   });
 };
@@ -101,7 +110,7 @@ export const signUp = catchAsync(async (req: Request, res: Response, next: NextF
     return next(new AppError('Failed to create user', 500));
   }
 
-  createAndSendToken(newUser.id, req, res);
+  await createAndSendToken({ ...newUser, name: newUser.name ?? '' }, req, 201, res);
 });
 
 export const login = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -117,7 +126,7 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
     return next(new AppError('Incorrect email or password', 401));
   }
 
-  createAndSendToken(user.id, req, res);
+  createAndSendToken({ ...user, name: user.name ?? '' }, req, 201, res);
 });
 
 export const logout = (req: Request, res: Response) => {
@@ -224,7 +233,7 @@ export const resetPassword = catchAsync(async (req, res, next) => {
     return next(new AppError('Failed to update password', 500));
   }
 
-  createAndSendToken(updatedUser.id, req, res);
+  await createAndSendToken({ ...updatedUser, name: updatedUser.name ?? '' }, req, 200, res);
 });
 
 export const updatePassword = catchAsync(
@@ -274,6 +283,6 @@ export const updatePassword = catchAsync(
       return next(new AppError('Failed to update password', 500));
     }
 
-    createAndSendToken(updatedUser.id, req, res);
+    await createAndSendToken({ ...updatedUser, name: updatedUser.name ?? '' }, req, 200, res);
   },
 );

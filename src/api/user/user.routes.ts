@@ -10,7 +10,7 @@ router.get('/me', isLoggedIn, UserController.myProfile);
 router
   .route('/:id')
   .get(UserController.getUser)
-  .patch(UserController.updateUser)
-  .delete(UserController.deleteUser);
+  .patch(isLoggedIn, UserController.updateUser)
+  .delete(isLoggedIn, UserController.deleteUser);
 
 export default router;

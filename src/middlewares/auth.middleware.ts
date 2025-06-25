@@ -45,7 +45,7 @@ export const protect = catchAsync(async (req: Request, res: Response, next: Next
   const token = extractToken(req);
 
   if (!token) {
-    throw new AppError('You are not logged in! Please log in to get access.', 401);
+    return next(new AppError('You are not logged in! Please log in to get access.', 401));
   }
 
   const currentUser = await verifyUser(token);

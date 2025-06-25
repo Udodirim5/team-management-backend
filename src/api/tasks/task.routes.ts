@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { taskController } from './task.controller';
-import { restrictToProjectAccess } from '../../middlewares/auth.middleware';
+import { protect, restrictToProjectAccess } from '../../middlewares/auth.middleware';
 
 const router = Router({ mergeParams: true }); // <== KEY for nested params
 
+router.use(protect);
+
+// router.use('/:taskId/comments', require('./comment/comment.routes').default);
 // CREATE a task - POST /
 router.post('/', restrictToProjectAccess(['OWNER', 'ADMIN', 'MEMBER']), taskController.createTask);
 
