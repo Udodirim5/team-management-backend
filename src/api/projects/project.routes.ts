@@ -21,6 +21,7 @@ const {
 // ✅ Protect all routes
 // router.use(protect);
 router.use('/:projectId/tasks', taskRoutes);
+// uncomment the above line to enable task routes under project
 
 // ✅ Routes
 router.route('/').post(createProject).get(getAllProjects);
