@@ -66,7 +66,7 @@ const createAndSendToken = async (user: User, req: Request, statusCode: number, 
 
   return res.status(statusCode).json({
     status: 'success',
-    token,
+    // token,
     data: {
       user: sanitizeUser(user),
     },
