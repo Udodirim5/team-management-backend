@@ -1,7 +1,10 @@
 // routes/project.routes.ts
 import express, { Router } from 'express';
 import ProjectController from './project.controller';
-import { protect, restrictToProjectAccess } from '../../middlewares/auth.middleware';
+import {
+  //  protect,
+  restrictToProjectAccess,
+} from '../../middlewares/auth.middleware';
 import taskRoutes from '../tasks/task.routes';
 
 const router: Router = express.Router();
@@ -19,7 +22,7 @@ const {
 } = ProjectController;
 
 // ✅ Protect all routes
-router.use(protect);
+// router.use(protect);
 router.use('/:projectId/tasks', taskRoutes);
 
 // ✅ Routes
